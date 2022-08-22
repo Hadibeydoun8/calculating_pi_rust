@@ -1,4 +1,6 @@
 import math
+from mpmath import mp
+
 from builtins import range, print
 
 C = 426880 * math.sqrt(10005)
@@ -23,3 +25,11 @@ def calc_m_l_x(n):
     x = math.pow(-262537412640768000, n)
 
     return m, l, x
+
+
+def calc_pi(n):
+    from mpmath import mp
+    mp.dps = n
+    print(mp.quad(lambda x: mp.exp(-x**2), [-mp.inf, mp.inf]) ** 2)
+
+calc_pi(500)
