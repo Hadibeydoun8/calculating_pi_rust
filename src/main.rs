@@ -1,22 +1,6 @@
-mod lib;
-mod pi_math;
-mod utilities;
-
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
-use crate::utilities::utilities::sum_from_file;
-
+use calculating_pi_rust::pi_math::CalcPi;
 
 fn main() {
-    println!("{}",
-         {match sum_from_file("input.txt", 2){
-             Ok(sum) => sum,
-             Err(error) => {
-                 println!("Error: {}", error);
-                 0
-             }
-         }
-         }
-    );
+    let mut calc_pi =  CalcPi::new(0, 10000000, 1, Some("./texting/main"));
+    calc_pi.calc_pi().unwrap();
 }
