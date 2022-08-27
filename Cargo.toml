@@ -6,9 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#rug = "1.17.0"
-#./status_handler/lib.rs = "0.0.1"
 num_cpus = "1.13.1"
-mysql = "*"
-rug = "*"
-log = "*"
+mysql = "22.2.0"
+log = "0.4.17"
+rug = "1.17.0"
+flate2 = "1.0"
+tar = "0.4"
+
+
+[dev-dependencies]
+criterion = "0.3.6"
+
+
+[[bench]]
+name = "calculating_pi"
+harness = false
