@@ -1,21 +1,20 @@
 [package]
 name = "calculating_pi_rust"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 num_cpus = "1.13.1"
-mysql = "22.2.0"
+sysinfo = "0.26.2"
 log = "0.4.17"
 rug = "1.17.0"
 flate2 = "1.0"
 tar = "0.4"
-
+hyper = "0.14.20"
 
 [dev-dependencies]
-criterion = "0.3.6"
+criterion = "0.4.0"
 
 
 [[bench]]

@@ -6,8 +6,8 @@ use rug::ops::Pow;
 use crate::data_handler::DataWriter;
 
 pub struct CalcPi {
-    pub n_start: i128,
-    pub n_end: i128,
+    n_start: i128,
+    n_end: i128,
 
     recursion_ready: bool,
 
@@ -58,11 +58,9 @@ impl CalcPi {
     fn calc_l_m_x(&mut self, n: Integer) {
         let _n: u32 = n.to_u32().unwrap();
 
-        if self.recursion_ready {
-            if self.last_n != Integer::sub(n.clone(), 1) {
-                println!("Recursion not ready at n={}, last_n={}", n, self.last_n);
-                self.recursion_ready = false;
-            }
+        if self.recursion_ready && self.last_n != Integer::sub(n.clone(), 1) {
+            println!("Recursion not ready at n={}, last_n={}", n, self.last_n);
+            self.recursion_ready = false;
         }
         self.last_n = n;
         if !self.recursion_ready {
@@ -71,7 +69,7 @@ impl CalcPi {
 
             let _q = Integer::factorial(6 * &_n).complete();
             let _w = Integer::factorial(3 * &_n).complete();
-            let _e = Integer::pow(Integer::factorial(*&_n).complete(), 3);
+            let _e = Integer::pow(Integer::factorial(_n).complete(), 3);
             self.last_m = _q / (_w * _e);
 
             let _kh: i128 = -6 + (12 * &_n) as i128;
@@ -82,12 +80,12 @@ impl CalcPi {
             self.last_l = Integer::add(_a, 13591409);
 
             // calc init x value
-            self.last_x = Integer::pow(Integer::from(-262537412640768000 as i64), &_n);
+            self.last_x = Integer::pow(Integer::from(-262537412640768000_i64), &_n);
 
             self.recursion_ready = true;
         } else {
             self.last_l = Integer::from(&self.last_l + 545140134);
-            self.last_x = Integer::from(&self.last_x * -262537412640768000 as i128);
+            self.last_x = Integer::from(&self.last_x * -262537412640768000_i128);
             self._k = &self._k + Integer::from(12 * &_n);
 
             let _q = Integer::pow(Integer::from(&self._k), 3);
@@ -126,7 +124,7 @@ mod tests {
     #[test]
     fn test_init_calc_l_m_x() {
         let test_path = Some("./testing");
-        let mut _c = CalcPi::new(0 as i128, 1 as i128, test_path);
+        let mut _c = CalcPi::new(0_i128, 1_i128, test_path);
         _c.calc_l_m_x(Integer::from(0));
         assert_eq!(_c.last_l, Integer::from(13591409));
         assert_eq!(_c.last_m, Integer::from(1));
@@ -138,20 +136,20 @@ mod tests {
     #[test]
     fn test_recursive_calc_l_m_x() {
         let test_path = Some("./testing");
-        let mut _c = CalcPi::new(0 as i128, 1 as i128, test_path);
+        let mut _c = CalcPi::new(0_i128, 1_i128, test_path);
         _c.calc_l_m_x(Integer::from(0));
         _c.calc_l_m_x(Integer::from(1));
         // _c.calc_l_m_x(Integer::from(1));
         assert_eq!(_c.last_l, Integer::from(558731543));
         assert_eq!(_c.last_m, Integer::from(120));
-        assert_eq!(_c.last_x, Integer::from(-262537412640768000 as i128));
+        assert_eq!(_c.last_x, Integer::from(-262537412640768000_i128));
         print!("l: {}, x: {}, m: {}", _c.last_l, _c.last_x, _c.last_m);
     }
 
     #[test]
     fn test_recursion_ready() {
         let test_path = Some("./testing");
-        let mut _c = CalcPi::new(0 as i128, 1 as i128, test_path);
+        let mut _c = CalcPi::new(0_i128, 1_i128, test_path);
         _c.calc_l_m_x(Integer::from(0));
         _c.calc_l_m_x(Integer::from(1));
         assert_eq!(_c.recursion_ready, true);

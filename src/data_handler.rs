@@ -8,9 +8,8 @@ use flate2::write::GzEncoder;
 use tar::Builder;
 
 
-
 #[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum HeaderError {
     FileTypeNotSupported(String),
     HeaderAlreadyWritten(Vec<String>),
@@ -19,7 +18,7 @@ pub enum HeaderError {
 }
 
 #[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum DataWriterError {
     FileAlreadyExists(String),
 }
@@ -59,7 +58,6 @@ pub struct DataWriter {
     f_ln_written: i32,
     t_ln_written: i32,
     max_size_per_file: u64,
-    data_range: [i32; 2],
 
     header_written: bool,
     headers: Vec<String>,
@@ -73,13 +71,12 @@ impl DataWriter {
         DataWriter {
             master_path: master_path.clone(),
             file_number,
-            file_type: file_type.clone().parse().unwrap(),
+            file_type: file_type.to_owned().parse().unwrap(),
             current_file: File::create(format!("{}/data{}.{}", &master_path, file_number, file_type)).unwrap(),
             f_ln_written: 0,
             max_size_per_file: 2_147_483_648,
             // max_size_per_file: 10_000_000,
             t_ln_written: 0,
-            data_range: [0, 0],
             headers: Vec::new(),
             header_written: false,
             header_assigned: false,
@@ -103,11 +100,8 @@ impl DataWriter {
         let mut folder_path;
         let mut result;
 
-        if !(base_folder_path.is_none()) {
-            match create_dir_all(base_folder_path.unwrap()) {
-                Ok(_) => {}
-                Err(_) => {}
-            }
+        if base_folder_path.is_some() {
+            create_dir_all(base_folder_path.unwrap())?;
         }
 
         loop {
@@ -129,7 +123,7 @@ impl DataWriter {
     }
 
     pub fn write_data_using_headers(&mut self, _data: Vec<String>) -> Result<(), HeaderError> {
-        if self.header_written == false {
+        if !self.header_written {
             return Err(HeaderError::HeaderNotInitialized());
         }
         // TODO:Implement header to data conversion
@@ -141,10 +135,10 @@ impl DataWriter {
         let mut data_string = String::new();
         for line in data.iter() {
             data_string.push_str(line);
-            data_string.push_str(",");
+            data_string.push(',');
         }
         if add_new_line.unwrap_or(true) {
-            data_string.push_str("\n");
+            data_string.push('\n');
             self.f_ln_written += 1;
             self.t_ln_written += 1;
         }
@@ -194,16 +188,16 @@ impl DataWriter {
     }
 
     fn write_headers(&mut self) -> Result<(), HeaderError> {
-        if self.header_written == true {
+        if self.header_written {
             return Err(HeaderError::HeaderAlreadyWritten(self.headers.clone()));
         };
         if self.file_type == "csv" {
             let mut header_string = String::new();
             for header in self.headers.iter() {
                 header_string.push_str(header);
-                header_string.push_str(",");
+                header_string.push(',');
             }
-            header_string.push_str("\n");
+            header_string.push('\n');
             if self.f_ln_written == 0 {
                 self.current_file.write_all(header_string.as_bytes()).unwrap();
                 self.header_written = true;
