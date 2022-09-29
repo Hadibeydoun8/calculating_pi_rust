@@ -1,4 +1,8 @@
+use serde::{Serialize, Deserialize};
+use reqwest::{Client};
+use reqwest;
 use std::collections::HashMap;
+use serde_json::json;
 
 
 pub struct StatusHandler {
@@ -6,12 +10,16 @@ pub struct StatusHandler {
     pub batch_id: i8,
     pub job_status: i32,
 
+    pub api_url: String,
+
     pub cores_available: i32,
     pub current_memory: f32,
     pub max_memory: f32,
 }
 
+
 impl StatusHandler {
+
     pub fn new(api_url: String) -> StatusHandler {
         use sysinfo::SystemExt;
         let s = sysinfo::System::new_all();
@@ -19,25 +27,31 @@ impl StatusHandler {
             job_id: 0,
             batch_id: 0,
             job_status: 0,
+
+            api_url,
+
             cores_available: num_cpus::get() as i32,
             current_memory: (s.total_memory()/1024/1024) as f32,
             max_memory: (s.total_memory()/1024/1024) as f32,
         }
     }
 
-    // pub async fn get_job_info(api_url: String) -> Result<String, E> {
-    //     let body = reqwest::get("https://www.rust-lang.org")
-    //         .await?
-    //         .text()
-    //         .await?;
-    //     println!("body = {:?}", body);
-    //     return body;
-    // }
+    #[tokio::main]
+    async fn get_job_types() -> Result<(), Box<dyn std::error::Error>> {
+        let resp = reqwest::get(" http://127.0.0.1:8000/job-types/")
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        println!("{:#?}", resp);
+        Ok(())
+    }
+
+
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use crate::status_handler;
 
     #[test]
     fn test_cpus() {
@@ -49,6 +63,10 @@ mod tests {
         use sysinfo::SystemExt;
         let s = sysinfo::System::new_all();
         println!("{}", (s.total_memory()/1024/1024) as f32);
+    }
+    #[test]
+    fn test_http() {
+        status_handler::StatusHandler::get_job_types();
     }
 
 }
