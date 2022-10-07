@@ -129,7 +129,7 @@ mod tests {
         assert_eq!(_c.last_l, Integer::from(13591409));
         assert_eq!(_c.last_m, Integer::from(1));
         assert_eq!(_c.last_x, Integer::from(1));
-        assert_eq!(_c.recursion_ready, true);
+        assert!(_c.recursion_ready);
         println!("l: {}, x: {}, m: {}", _c.last_l, _c.last_x, _c.last_m);
     }
 
@@ -152,11 +152,11 @@ mod tests {
         let mut _c = CalcPi::new(0_i128, 1_i128, test_path);
         _c.calc_l_m_x(Integer::from(0));
         _c.calc_l_m_x(Integer::from(1));
-        assert_eq!(_c.recursion_ready, true);
+        assert!(_c.recursion_ready);
         _c.calc_l_m_x(Integer::from(3));
-        assert_eq!(_c.recursion_ready, true);
+        assert!(_c.recursion_ready);
         _c.calc_l_m_x(Integer::from(4));
-        assert_eq!(_c.recursion_ready, true);
+        assert!(_c.recursion_ready);
     }
 
     #[test]
