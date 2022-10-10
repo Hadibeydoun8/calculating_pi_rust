@@ -155,7 +155,8 @@ impl StatusHandler {
         let start_n = job.job_args.start_n;
         let end_n = job.job_args.end_n;
         let mut calc_pi = CalcPi::new(start_n as i128, end_n as i128, Some("./"));
-        calc_pi.set_status_update_interval(100);
+        calc_pi.set_status_update_interval(self.job_info.as_ref().unwrap().job_args.status_update_interval as i128);
+        calc_pi.set_data_handler_archive_id(self.job_info.as_ref().unwrap().id as i32, self.job_info.as_ref().unwrap().job_batch.id as i32);
         self.job_status = 4;
         self.write_new_status().await;
         let (tx, mut rx) = mpsc::channel(32);
@@ -169,7 +170,6 @@ impl StatusHandler {
 
         while let Some(message) = rx.recv().await {
             self.update_percent_complete(message).await;
-            // println!("Percent complete: {:?}", message);
         }
         self.complete_job().await;
     }

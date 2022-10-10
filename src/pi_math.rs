@@ -80,6 +80,10 @@ impl CalcPi {
         self.data_handler.close_and_compress_output().unwrap();
     }
 
+    pub fn set_data_handler_archive_id(&mut self, id: i32, batch_id: i32) {
+        self.data_handler.set_archive_id(id, batch_id);
+    }
+
     #[cfg(bench)]
     pub fn calc_pi_no_write(&mut self) -> std::io::Result<()> {
         self.init_data_handler();

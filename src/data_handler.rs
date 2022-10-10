@@ -48,6 +48,10 @@ impl fmt::Display for DataWriterError {
     }
 }
 
+pub struct ArchiveInfo {
+    id: i32,
+    batch_id: i32,
+}
 
 pub struct DataWriter {
     master_path: String,
@@ -62,6 +66,8 @@ pub struct DataWriter {
     header_written: bool,
     headers: Vec<String>,
     header_assigned: bool,
+
+    archive_info: Option<ArchiveInfo>,
 }
 
 impl DataWriter {
@@ -80,6 +86,8 @@ impl DataWriter {
             headers: Vec::new(),
             header_written: false,
             header_assigned: false,
+
+            archive_info: None,
         }
     }
 
@@ -150,16 +158,25 @@ impl DataWriter {
 
     pub fn close_and_compress_output(&mut self) -> Result<(), DataWriterError> {
         self.close_current_file().unwrap();
+        let archive_path: String;
 
         // TODO: Implement conversion form std error to data writer error
-        // TODO: Implement proper naming of compressed file
-        let tar_gz = File::create("archive.tar.gz").unwrap();
+        if self.archive_info.is_some() {
+            archive_path = format!("pi_{}_{}.tar.gz", self.archive_info.as_ref().unwrap().batch_id, self.archive_info.as_ref().unwrap().id, );
+        } else{
+            archive_path = format!("archive.tar.gz");
+        }
+        let tar_gz = File::create(archive_path).unwrap();
         let enc = GzEncoder::new(tar_gz, flate2::Compression::best());
         let mut tar = Builder::new(enc);
         // TODO: Implement conversion form std error to data writer error
         tar.append_dir_all("{}", &self.master_path).unwrap();
         tar.finish().unwrap();
         Ok(())
+    }
+
+    pub fn set_archive_id(&mut self, id: i32, batch_id: i32) {
+        self.archive_info = Some(ArchiveInfo{id, batch_id});
     }
 
     fn get_next_file(&mut self) -> Result<(), DataWriterError> {

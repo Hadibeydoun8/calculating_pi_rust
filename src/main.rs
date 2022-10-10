@@ -6,4 +6,3 @@ fn main() {
     sh.get_job();
     sh.dispatch_job();
 }
-
