@@ -16,6 +16,8 @@ pub struct StatusHandler {
     cores_available: i32,
     current_memory: f32,
 
+    process_id: i32,
+
     job_info: Option<JobInfo>,
 
 }
@@ -72,14 +74,16 @@ struct NodeInfo {
     id: f32,
     available_cores: i32,
     available_ram: f32,
+    process_id: i32,
 }
 
 impl NodeInfo {
-    pub fn new(id: f32, available_cores: i32, available_ram: f32) -> Self {
+    pub fn new(id: f32, available_cores: i32, available_ram: f32, process_id: i32) -> Self {
         NodeInfo {
             id,
             available_cores,
             available_ram,
+            process_id,
         }
     }
 }
@@ -99,6 +103,8 @@ impl StatusHandler {
             current_memory: (s.total_memory() / 1024 / 1024) as f32,
 
             job_info: None,
+
+            process_id: -1,
 
         }
     }
@@ -173,6 +179,9 @@ impl StatusHandler {
         }
         self.complete_job().await;
     }
+    pub fn set_process_id(&mut self, id: i32) {
+        self.process_id = id;
+    }
     async fn reject_job(&mut self) {
         self.job_status = 1;
         self.write_new_status().await;
@@ -189,7 +198,7 @@ impl StatusHandler {
     }
     async fn update_node_info(&mut self) {
         let client = reqwest::Client::new();
-        let node_info = NodeInfo::new(self.job_info.as_ref().unwrap().id, self.cores_available, self.current_memory);
+        let node_info = NodeInfo::new(self.job_info.as_ref().unwrap().id, self.cores_available, self.current_memory, self.process_id);
         let _ = client.patch(self.api_url.clone() + "/worker-nodes/set-info")
             .json(&node_info)
             .send()
@@ -227,6 +236,7 @@ impl StatusHandler {
             .await
             .unwrap();
     }
+
 }
 
 
