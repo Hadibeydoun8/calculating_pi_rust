@@ -2,12 +2,20 @@ use std::ops::{Add, Div, Mul, Sub};
 
 use rug::{Complete, Integer};
 use rug::ops::Pow;
+use tokio::sync::mpsc;
 
 use crate::data_handler::DataWriter;
+
+use crate::status_handler::PercentUpdate;
+
+// enum CalculatingPiError {
+//     RequiredValueNotSet(String),
+// }
 
 pub struct CalcPi {
     n_start: i128,
     n_end: i128,
+    status_update_interval: Option<i128>,
 
     recursion_ready: bool,
 
@@ -25,6 +33,7 @@ impl CalcPi {
         CalcPi {
             n_start,
             n_end,
+            status_update_interval: None,
             recursion_ready: false,
             data_handler: DataWriter::new("csv", base_output_path),
             last_n: Integer::from(0),
@@ -35,6 +44,12 @@ impl CalcPi {
         }
     }
 
+
+    pub fn set_status_update_interval(&mut self, interval: i128) {
+        self.status_update_interval = Some(interval);
+    }
+
+
     pub fn calc_pi_terms(&mut self) -> std::io::Result<()> {
         self.init_data_handler();
         for n in self.n_start..self.n_end {
@@ -43,6 +58,26 @@ impl CalcPi {
         }
         self.data_handler.close_and_compress_output().unwrap();
         Ok(())
+    }
+
+    pub async fn calc_pi_terms_with_status(&mut self, tx: mpsc::Sender<PercentUpdate>) {
+        let range = self.n_end - self.n_start;
+        if self.status_update_interval.is_none() {
+            panic!("Status update interval not set");
+        }
+        self.init_data_handler();
+        for n in self.n_start..self.n_end {
+            if n % self.status_update_interval.unwrap() == 0 {
+                let percent_complete = (n - self.n_start) as f32 / range as f32 * 100.0;
+                println!("Percent complete: {} {}", percent_complete, n);
+                tx.send(PercentUpdate::new(percent_complete)).await.unwrap();
+                tokio::time::sleep(std::time::Duration::from_millis(0)).await;
+            }
+            self.calc_l_m_x(Integer::from(n));
+            self.write_most_recent_l_m_x();
+        }
+        tx.send(PercentUpdate::new(100.0)).await.unwrap();
+        self.data_handler.close_and_compress_output().unwrap();
     }
 
     #[cfg(bench)]

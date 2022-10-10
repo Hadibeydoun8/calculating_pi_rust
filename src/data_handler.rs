@@ -126,8 +126,8 @@ impl DataWriter {
         if !self.header_written {
             return Err(HeaderError::HeaderNotInitialized());
         }
-        // TODO:Implement header to data conversion
-        todo!()
+        // TODO: implement header conversion
+        Ok(())
     }
 
     pub fn write_data_using_array(&mut self, data: Vec<String>, add_new_line: Option<bool>) -> Result<(), DataWriterError> {
