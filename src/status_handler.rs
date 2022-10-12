@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_spawn() {
-        let mut s = StatusHandler::new("https://piapi.oscorp.lm".to_string());
+        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
         s.get_job();
         s.dispatch_job();
     }
