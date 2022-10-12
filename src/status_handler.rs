@@ -130,8 +130,7 @@ impl StatusHandler {
                         println!("Error: {:?}", e);
                         err_count += 1;
                         continue;
-                    }
-                    else {
+                    } else {
                         panic!("Error: {:?}", e);
                     }
                 }
@@ -192,7 +191,7 @@ impl StatusHandler {
         self.update_node_info().await;
         self.write_new_status().await;
     }
-    async fn complete_job (&mut self) {
+    async fn complete_job(&mut self) {
         self.job_status = 5;
         self.write_new_status().await;
     }
@@ -204,39 +203,62 @@ impl StatusHandler {
             .send()
             .await
             .unwrap();
-        }
+    }
     async fn write_new_status(&mut self) {
         let s = SetStatus {
             id: self.job_info.as_ref().unwrap().id,
             status: self.job_status as i8,
         };
         let client = reqwest::Client::new();
-        let resp = client.patch(self.api_url.clone() + "/worker-nodes/set-status")
-            .json(&s)
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-
-        print!("{:?}", resp);
+        let mut err_count = 0;
+        loop {
+            let resp = client.patch(self.api_url.clone() + "/worker-nodes/set-status")
+                .json(&s)
+                .send()
+                .await;
+            match resp {
+                Ok(_) => {
+                    break;
+                }
+                Err(e) => {
+                    if err_count > 5 {
+                        println!("Error: {:?}", e);
+                        err_count += 1;
+                        continue;
+                    } else {
+                        panic!("Error: {:?}", e);
+                    }
+                }
+            }
+        }
     }
     async fn update_percent_complete(&mut self, percent: PercentUpdate) {
         let client = reqwest::Client::new();
-        let _ = client.patch(self.api_url.clone() + "/worker-nodes/update-percentage")
-            .json(&PStatusUpdate {
-                id: self.job_info.as_ref().unwrap().id,
-                percentage_complete: percent.percent,
-            })
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let mut err_count = 0;
+        loop {
+            let resp = client.patch(self.api_url.clone() + "/worker-nodes/update-percentage")
+                .json(&PStatusUpdate {
+                    id: self.job_info.as_ref().unwrap().id,
+                    percentage_complete: percent.percent,
+                })
+                .send()
+                .await;
+            match resp {
+                Ok(_) => {
+                    break;
+                }
+                Err(e) => {
+                    if err_count > 5 {
+                        println!("Error: {:?}", e);
+                        err_count += 1;
+                        continue;
+                    } else {
+                        panic!("Error: {:?}", e);
+                    }
+                }
+            }
+        }
     }
-
 }
 
 
@@ -263,14 +285,14 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn(){
+    fn test_spawn() {
         let mut s = StatusHandler::new("https://piapi.oscorp.lm".to_string());
         s.get_job();
         s.dispatch_job();
     }
 
     #[test]
-    fn test_update_node_info(){
+    fn test_update_node_info() {
         let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
         s.get_job();
     }
