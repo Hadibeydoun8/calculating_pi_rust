@@ -249,11 +249,11 @@ impl StatusHandler {
                 }
                 Err(e) => {
                     if err_count > 5 {
-                        println!("Error: {:?}", e);
+                        println!("Update Percent Complete Error: {:?}", e);
                         err_count += 1;
                         continue;
                     } else {
-                        panic!("Error: {:?}", e);
+                        panic!("Update Percent Complete Error: {:?}", e);
                     }
                 }
             }
