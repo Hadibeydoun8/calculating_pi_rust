@@ -55,7 +55,6 @@ struct JobArgs {
     status_update_interval: f32,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 struct JobInfo {
     id: f32,
@@ -88,8 +87,6 @@ impl NodeInfo {
     }
 }
 
-
-
 impl StatusHandler {
     pub fn new(api_url: String) -> StatusHandler {
         use sysinfo::SystemExt;
@@ -108,12 +105,11 @@ impl StatusHandler {
 
         }
     }
-
-
     #[tokio::main]
     pub async fn get_job(&mut self) {
         let mut x_ids: Vec<u8> = vec![];
         let mut job_selected = false;
+        let mut err_count = 0;
         while !&job_selected {
             let client = reqwest::Client::new();
             let resp = client.put(self.api_url.clone() + "/worker-nodes/get-job")
@@ -130,12 +126,16 @@ impl StatusHandler {
                     self.job_info = Some(job);
                 }
                 Err(e) => {
-                    panic!("Error: {:?}", e);
+                    if err_count > 5 {
+                        println!("Error: {:?}", e);
+                        err_count += 1;
+                        continue;
+                    }
+                    else {
+                        panic!("Error: {:?}", e);
+                    }
                 }
             }
-
-
-
 
             if self.job_info.as_ref().unwrap().job_batch.cpu_needed as i64 > self.cores_available as i64 {
                 println!("Not enough cores available");
@@ -263,22 +263,15 @@ mod tests {
     }
 
     #[test]
-    fn test_reject_job() {
-        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
-        s.cores_available = 0;
-        s.get_job();
-    }
-
-    #[test]
     fn test_spawn(){
-        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
+        let mut s = StatusHandler::new("https://piapi.oscorp.lm".to_string());
         s.get_job();
         s.dispatch_job();
     }
 
     #[test]
     fn test_update_node_info(){
-        let mut s = StatusHandler::new("http://127.0.0.1:8000".to_string());
+        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
         s.get_job();
     }
 }
