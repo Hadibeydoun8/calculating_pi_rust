@@ -110,23 +110,36 @@ impl StatusHandler {
         let mut x_ids: Vec<u8> = vec![];
         let mut job_selected = false;
         let mut err_count = 0;
+        let mut resp_2;
         while !&job_selected {
             let client = reqwest::Client::new();
             let resp = client.put(self.api_url.clone() + "/worker-nodes/get-job")
                 .json(&x_ids)
                 .send()
-                .await
-                .unwrap()
-                .json::<JobInfo>()
                 .await;
 
             match resp {
+                Ok(r) => {
+                    resp_2 = r.json::<JobInfo>().await;
+                },
+                Err(e) => {
+                    if err_count < 5 {
+                        println!("Error: {:?}", e);
+                        err_count += 1;
+                        continue;
+                    } else {
+                        panic!("Error: {:?}", e);
+                    }
+                }
+            }
+            err_count = 0;
+            match resp_2 {
                 Ok(job) => {
                     println!("Job selected: {:?}", job);
                     self.job_info = Some(job);
                 }
                 Err(e) => {
-                    if err_count > 5 {
+                    if err_count < 5 {
                         println!("Error: {:?}", e);
                         err_count += 1;
                         continue;
@@ -221,7 +234,7 @@ impl StatusHandler {
                     break;
                 }
                 Err(e) => {
-                    if err_count > 5 {
+                    if err_count < 5 {
                         println!("Error: {:?}", e);
                         err_count += 1;
                         continue;
@@ -248,12 +261,12 @@ impl StatusHandler {
                     break;
                 }
                 Err(e) => {
-                    if err_count > 5 {
-                        println!("Update Percent Complete Error: {:?}", e);
+                    if err_count < 5 {
+                        println!("Update Percent Error: {:?}", e);
                         err_count += 1;
                         continue;
                     } else {
-                        panic!("Update Percent Complete Error: {:?}", e);
+                        panic!("Update Percent Error: {:?}", e);
                     }
                 }
             }
@@ -286,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_spawn() {
-        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
+        let mut s = StatusHandler::new("https://piapi.oscorp.m".to_string());
         s.get_job();
         s.dispatch_job();
     }
