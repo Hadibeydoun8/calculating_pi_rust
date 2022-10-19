@@ -1,3 +1,5 @@
+use std::thread::sleep;
+use std::time::Duration;
 use reqwest;
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +9,18 @@ use tokio::sync::mpsc;
 
 use crate::pi_math::CalcPi;
 
+#[derive(Debug, Clone)]
+pub enum StatusHandlerError{
+    ErrorGettingJob(String),
+    ErrorUnpackingJob(String),
+    ErrorUpdatingNodeInfo(String),
+    ErrorUpdatingStatus(String),
+    ErrorUpdatingPercentageComplete(String),
+}
+
+impl StatusHandlerError {
+
+}
 
 pub struct StatusHandler {
     job_status: i32,
@@ -110,7 +124,7 @@ impl StatusHandler {
         }
     }
     #[tokio::main]
-    pub async fn get_job(&mut self) {
+    pub async fn get_job(&mut self) -> Result<(), StatusHandlerError> {
         let mut x_ids: Vec<u8> = vec![];
         let mut job_selected = false;
         let mut err_count = 0;
@@ -130,9 +144,10 @@ impl StatusHandler {
                     if err_count < 5 {
                         println!("Error: {:?}", e);
                         err_count += 1;
+                        sleep(Duration::from_millis(1000));
                         continue;
                     } else {
-                        panic!("Error: {:?}", e);
+                        return Err(StatusHandlerError::ErrorGettingJob(e.to_string()));
                     }
                 }
             }
@@ -146,9 +161,10 @@ impl StatusHandler {
                     if err_count < 5 {
                         println!("Error: {:?}", e);
                         err_count += 1;
+                        sleep(Duration::from_millis(1000));
                         continue;
                     } else {
-                        panic!("Error: {:?}", e);
+                        return Err(StatusHandlerError::ErrorUnpackingJob(e.to_string()));
                     }
                 }
             }
@@ -170,6 +186,7 @@ impl StatusHandler {
             self.accept_job().await;
             job_selected = true;
         }
+        Ok(())
     }
     #[tokio::main]
     pub async fn dispatch_job(&mut self) {
@@ -180,7 +197,7 @@ impl StatusHandler {
         calc_pi.set_status_update_interval(self.job_info.as_ref().unwrap().job_args.status_update_interval as i128);
         calc_pi.set_data_handler_archive_id(self.job_info.as_ref().unwrap().id as i32, self.job_info.as_ref().unwrap().job_batch.id as i32);
         self.job_status = 4;
-        self.write_new_status().await;
+        self.write_new_status().await.unwrap();
         let (tx, mut rx) = mpsc::channel(32);
 
 
@@ -191,7 +208,7 @@ impl StatusHandler {
         );
 
         while let Some(message) = rx.recv().await {
-            self.update_percent_complete(message).await;
+            self.update_percent_complete(message).await.unwrap();
         }
         self.complete_job().await;
     }
@@ -201,28 +218,45 @@ impl StatusHandler {
     }
     async fn reject_job(&mut self) {
         self.job_status = 1;
-        self.write_new_status().await;
+        self.write_new_status().await.unwrap();
         self.job_info = None;
     }
     async fn accept_job(&mut self) {
         self.job_status = 3;
-        self.update_node_info().await;
-        self.write_new_status().await;
+        self.update_node_info().await.unwrap();
+        self.write_new_status().await.unwrap();
     }
     async fn complete_job(&mut self) {
         self.job_status = 5;
-        self.write_new_status().await;
+        self.write_new_status().await.unwrap();
     }
-    async fn update_node_info(&mut self) {
+    async fn update_node_info(&mut self) -> Result<(), StatusHandlerError> {
         let client = reqwest::Client::new();
+        let mut err_count = 0;
         let node_info = NodeInfo::new(self.job_info.as_ref().unwrap().id, self.cores_available, self.current_memory, self.process_id, self.cluster_id);
-        let _ = client.patch(self.api_url.clone() + "/worker-nodes/set-info")
-            .json(&node_info)
-            .send()
-            .await
-            .unwrap();
+        loop {
+            let resp = client.patch(self.api_url.clone() + "/worker-nodes/set-info")
+                .json(&node_info)
+                .send()
+                .await;
+            match resp {
+                Ok(_) => {
+                    break;
+                }
+                Err(e) => {
+                    if err_count < 5 {
+                        println!("Update Node Info Error: {:?}", e);
+                        err_count += 1;
+                        continue;
+                    } else {
+                        return Err(StatusHandlerError::ErrorUpdatingNodeInfo(e.to_string()));
+                    }
+                }
+            }
+        }
+        return Ok(());
     }
-    async fn write_new_status(&mut self) {
+    async fn write_new_status(&mut self) -> Result<(), StatusHandlerError> {
         let s = SetStatus {
             id: self.job_info.as_ref().unwrap().id,
             status: self.job_status as i8,
@@ -240,17 +274,19 @@ impl StatusHandler {
                 }
                 Err(e) => {
                     if err_count < 5 {
-                        println!("Error: {:?}", e);
+                        println!("Error Writing Status: {:?}", e);
                         err_count += 1;
+                        sleep(Duration::from_millis(1000));
                         continue;
                     } else {
-                        panic!("Error: {:?}", e);
+                        return Err(StatusHandlerError::ErrorUpdatingStatus(e.to_string()));
                     }
                 }
             }
         }
+        Ok(())
     }
-    async fn update_percent_complete(&mut self, percent: PercentUpdate) {
+    async fn update_percent_complete(&mut self, percent: PercentUpdate) -> Result<(), StatusHandlerError> {
         let client = reqwest::Client::new();
         let mut err_count = 0;
         loop {
@@ -269,20 +305,23 @@ impl StatusHandler {
                     if err_count < 5 {
                         println!("Update Percent Error: {:?}", e);
                         err_count += 1;
+                        sleep(Duration::from_millis(1000));
                         continue;
                     } else {
-                        panic!("Update Percent Error: {:?}", e);
+                        return Err(StatusHandlerError::ErrorUpdatingPercentageComplete(e.to_string()));
                     }
                 }
             }
         }
+        Ok(())
     }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use crate::status_handler::StatusHandler;
+    use std::io::ErrorKind;
+    use crate::status_handler::{StatusHandler, StatusHandlerError};
 
     #[test]
     fn test_cpus() {
@@ -299,19 +338,27 @@ mod tests {
     #[test]
     fn test_http() {
         let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
-        s.get_job();
+        s.get_job().unwrap();
     }
 
     #[test]
     fn test_spawn() {
-        let mut s = StatusHandler::new("https://piapi.oscorp.m".to_string());
-        s.get_job();
+        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
+        s.get_job().unwrap();
         s.dispatch_job();
     }
 
     #[test]
     fn test_update_node_info() {
         let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
-        s.get_job();
+        s.get_job().unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_job() {
+        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
+        s.get_job().unwrap();
+        s.reject_job().await;
+        s.api_url = "https://piapi.oscorp.m".to_string();
     }
 }

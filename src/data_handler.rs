@@ -81,7 +81,7 @@ impl DataWriter {
             current_file: File::create(format!("{}/data{}.{}", &master_path, file_number, file_type)).unwrap(),
             f_ln_written: 0,
             max_size_per_file: 2_147_483_648,
-            // max_size_per_file: 10_000_000,
+// max_size_per_file: 10_000_000,
             t_ln_written: 0,
             headers: Vec::new(),
             header_written: false,
@@ -92,7 +92,7 @@ impl DataWriter {
     }
 
     pub fn assign_headers(&mut self, headers: Vec<String>) -> Result<(), HeaderError> {
-        // Check if file supports headers
+// Check if file supports headers
         if self.file_type == "csv" {
             self.headers = headers;
             self.header_assigned = true;
@@ -134,7 +134,7 @@ impl DataWriter {
         if !self.header_written {
             return Err(HeaderError::HeaderNotInitialized());
         }
-        // TODO: implement header conversion
+// TODO: implement header conversion
         Ok(())
     }
 
@@ -160,23 +160,23 @@ impl DataWriter {
         self.close_current_file().unwrap();
         let archive_path: String;
 
-        // TODO: Implement conversion form std error to data writer error
+// TODO: Implement conversion form std error to data writer error
         if self.archive_info.is_some() {
             archive_path = format!("pi_{}_{}.tar.gz", self.archive_info.as_ref().unwrap().batch_id, self.archive_info.as_ref().unwrap().id, );
-        } else{
+        } else {
             archive_path = format!("archive.tar.gz");
         }
         let tar_gz = File::create(archive_path).unwrap();
         let enc = GzEncoder::new(tar_gz, flate2::Compression::best());
         let mut tar = Builder::new(enc);
-        // TODO: Implement conversion form std error to data writer error
+// TODO: Implement conversion form std error to data writer error
         tar.append_dir_all("{}", &self.master_path).unwrap();
         tar.finish().unwrap();
         Ok(())
     }
 
     pub fn set_archive_id(&mut self, id: i32, batch_id: i32) {
-        self.archive_info = Some(ArchiveInfo{id, batch_id});
+        self.archive_info = Some(ArchiveInfo { id, batch_id });
     }
 
     fn get_next_file(&mut self) -> Result<(), DataWriterError> {
@@ -260,7 +260,7 @@ mod test {
             data = vec![i.to_string(), (i + 1).to_string(), (i + 2).to_string()];
             writer.write_data_using_array(data, Some(true)).unwrap();
         }
-        // assert_eq!(writer.f_ln_written, 3);
+// assert_eq!(writer.f_ln_written, 3);
     }
 
     #[test]
