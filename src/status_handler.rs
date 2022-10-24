@@ -273,7 +273,7 @@ impl StatusHandler {
                 }
             }
         }
-        return Ok(());
+        Ok(())
     }
     async fn write_new_status(&mut self) -> Result<(), StatusHandlerError> {
         let s = SetStatus {

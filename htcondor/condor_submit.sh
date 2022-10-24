@@ -5,6 +5,8 @@
 
 # First Build the Calculating Pi Executable
 cd ../
+git reset --hard
+git pull
 cargo build --release
 
 # Stage the Executable
