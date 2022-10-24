@@ -5,7 +5,7 @@ log = ./log/job_$(Cluster)_$(Process).log
 error = ./error/job_$(Cluster)_$(Process).err
 output = ./output/job_$(Cluster)_$(Process).out
 
-+SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-el8:latest"
++SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-el7:latest"
 
 transfer_output_remaps = "* = stash:///osgconnect/public/hadibeydoun8/calculating-pi/*"
 
