@@ -1,0 +1,14 @@
+executable = calculating_pi_rust
+arguments  = $(Process) $(Cluster)
+
+log = ./log/job_$(Cluster)_$(Process).log
+error = ./error/job_$(Cluster)_$(Process).err
+output = ./output/job_$(Cluster)_$(Process).out
+
+request_memory = 2 GB
+request_cpus   = 1
+request_disk   = 4 GB
+
+requirements = OSGVO_OS_STRING == "RHEL 7" && Arch == "X86_64"
+
+queue 100
