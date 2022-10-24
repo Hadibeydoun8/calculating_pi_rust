@@ -5,6 +5,10 @@ log = ./log/job_$(Cluster)_$(Process).log
 error = ./error/job_$(Cluster)_$(Process).err
 output = ./output/job_$(Cluster)_$(Process).out
 
++SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-el8:latest"
+
+transfer_output_remaps = "* = stash:///osgconnect/public/hadibeydoun8/calculating-pi/*"
+
 request_memory = 2 GB
 request_cpus   = 1
 request_disk   = 4 GB
