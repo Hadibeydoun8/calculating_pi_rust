@@ -6,7 +6,7 @@ use serde_json;
 
 use isahc;
 use isahc::config::{RedirectPolicy, VersionNegotiation};
-use isahc::{prelude::*};
+use isahc::prelude::*;
 
 use tokio::sync::mpsc;
 
@@ -144,7 +144,9 @@ impl StatusHandler {
             let req = isahc::Request::put(self.api_url.clone() + "/worker-nodes/get-job")
                 .body(serde_json::to_string(&x_ids).unwrap())
                 .unwrap();
-            let resp = self.https_client.send_async(req)
+            let resp = self
+                .https_client
+                .send_async(req)
                 .await
                 .unwrap()
                 .json()
@@ -241,7 +243,6 @@ impl StatusHandler {
         self.write_new_status().await.unwrap();
     }
     async fn update_node_info(&mut self) -> Result<(), StatusHandlerError> {
-        let client = reqwest::Client::new();
         let mut err_count = 0;
         let node_info = NodeInfo::new(
             self.job_info.as_ref().unwrap().id,
@@ -251,11 +252,12 @@ impl StatusHandler {
             self.cluster_id,
         );
         loop {
-            let resp = client
-                .patch(self.api_url.clone() + "/worker-nodes/set-info")
-                .json(&node_info)
-                .send()
-                .await;
+            let req = isahc::Request::patch(self.api_url.clone() + "/worker-nodes/set-info")
+                .body(serde_json::to_string(&node_info).unwrap())
+                .unwrap();
+
+            let resp = self.https_client.send_async(req).await;
+
             match resp {
                 Ok(_) => {
                     break;
@@ -278,14 +280,11 @@ impl StatusHandler {
             id: self.job_info.as_ref().unwrap().id,
             status: self.job_status as i8,
         };
-        let client = reqwest::Client::new();
         let mut err_count = 0;
         loop {
-            let resp = client
-                .patch(self.api_url.clone() + "/worker-nodes/set-status")
-                .json(&s)
-                .send()
-                .await;
+            let req = isahc::Request::patch(self.api_url.clone() + "/worker-nodes/set-status")
+                .body(serde_json::to_string(&s).unwrap());
+            let resp = self.https_client.send_async(req.unwrap()).await;
             match resp {
                 Ok(_) => {
                     break;
@@ -308,17 +307,18 @@ impl StatusHandler {
         &mut self,
         percent: PercentUpdate,
     ) -> Result<(), StatusHandlerError> {
-        let client = reqwest::Client::new();
         let mut err_count = 0;
         loop {
-            let resp = client
-                .patch(self.api_url.clone() + "/worker-nodes/update-percentage")
-                .json(&PStatusUpdate {
-                    id: self.job_info.as_ref().unwrap().id,
-                    percentage_complete: percent.percent,
-                })
-                .send()
-                .await;
+            let req =
+                isahc::Request::patch(self.api_url.clone() + "/worker-nodes/update-percentage")
+                    .body(
+                        serde_json::to_string(&PStatusUpdate {
+                            id: self.job_info.as_ref().unwrap().id,
+                            percentage_complete: percent.percent,
+                        })
+                        .unwrap(),
+                    );
+            let resp = self.https_client.send_async(req.unwrap()).await;
             match resp {
                 Ok(_) => {
                     break;
@@ -343,7 +343,7 @@ impl StatusHandler {
 
 #[cfg(test)]
 mod tests {
-    use crate::status_handler::{StatusHandler};
+    use crate::status_handler::StatusHandler;
 
     #[test]
     fn test_cpus() {
@@ -376,11 +376,5 @@ mod tests {
         s.get_job().unwrap();
     }
 
-    #[tokio::test]
-    async fn test_get_job() {
-        let mut s = StatusHandler::new("https://piapi.oscorp.ml".to_string());
-        s.get_job().unwrap();
-        s.reject_job().await;
-        s.api_url = "https://piapi.oscorp.m".to_string();
-    }
+
 }
