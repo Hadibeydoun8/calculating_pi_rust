@@ -25,6 +25,5 @@ fn calc_pi_wo_write(c: &mut Criterion) {
     });
 }
 
-
 criterion_group!(benches, calc_pi_with_write, calc_pi_wo_write);
 criterion_main!(benches);

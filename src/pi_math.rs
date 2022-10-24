@@ -1,7 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use rug::{Complete, Integer};
 use rug::ops::Pow;
+use rug::{Complete, Integer};
 use tokio::sync::mpsc;
 
 use crate::data_handler::DataWriter;
@@ -44,11 +44,9 @@ impl CalcPi {
         }
     }
 
-
     pub fn set_status_update_interval(&mut self, interval: i128) {
         self.status_update_interval = Some(interval);
     }
-
 
     pub fn calc_pi_terms(&mut self) -> std::io::Result<()> {
         self.init_data_handler();
@@ -103,7 +101,6 @@ impl CalcPi {
         }
         self.last_n = n;
         if !self.recursion_ready {
-
             // calc init m value
 
             let _q = Integer::factorial(6 * &_n).complete();
@@ -140,15 +137,28 @@ impl CalcPi {
     }
 
     fn write_most_recent_l_m_x(&mut self) {
-        let data = vec!(self.last_n.to_string(), self.last_l.to_string(), self.last_m.to_string(), self.last_x.to_string());
-        self.data_handler.write_data_using_array(data, Some(true)).unwrap();
+        let data = vec![
+            self.last_n.to_string(),
+            self.last_l.to_string(),
+            self.last_m.to_string(),
+            self.last_x.to_string(),
+        ];
+        self.data_handler
+            .write_data_using_array(data, Some(true))
+            .unwrap();
     }
 
     fn init_data_handler(&mut self) {
-        self.data_handler.assign_headers(vec!["n".to_string(), "l".to_string(), "m".to_string(), "x".to_string()]).unwrap();
+        self.data_handler
+            .assign_headers(vec![
+                "n".to_string(),
+                "l".to_string(),
+                "m".to_string(),
+                "x".to_string(),
+            ])
+            .unwrap();
     }
 }
-
 
 #[cfg(test)]
 mod tests {

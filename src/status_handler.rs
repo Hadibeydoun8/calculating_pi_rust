@@ -1,16 +1,19 @@
+use serde::{Deserialize, Serialize};
 use std::thread::sleep;
 use std::time::Duration;
-use reqwest;
-use serde::{Deserialize, Serialize};
 
+use serde_json;
+
+use isahc;
+use isahc::config::{RedirectPolicy, VersionNegotiation};
+use isahc::{prelude::*};
 
 use tokio::sync::mpsc;
-
 
 use crate::pi_math::CalcPi;
 
 #[derive(Debug, Clone)]
-pub enum StatusHandlerError{
+pub enum StatusHandlerError {
     ErrorGettingJob(String),
     ErrorUnpackingJob(String),
     ErrorUpdatingNodeInfo(String),
@@ -18,9 +21,7 @@ pub enum StatusHandlerError{
     ErrorUpdatingPercentageComplete(String),
 }
 
-impl StatusHandlerError {
-
-}
+impl StatusHandlerError {}
 
 pub struct StatusHandler {
     job_status: i32,
@@ -33,8 +34,9 @@ pub struct StatusHandler {
     process_id: i32,
     cluster_id: i32,
 
-    job_info: Option<JobInfo>,
+    https_client: isahc::HttpClient,
 
+    job_info: Option<JobInfo>,
 }
 
 #[derive(Debug)]
@@ -44,9 +46,7 @@ pub struct PercentUpdate {
 
 impl PercentUpdate {
     pub fn new(percent: f32) -> Self {
-        PercentUpdate {
-            percent,
-        }
+        PercentUpdate { percent }
     }
 }
 
@@ -93,7 +93,13 @@ struct NodeInfo {
 }
 
 impl NodeInfo {
-    pub fn new(id: f32, available_cores: i32, available_ram: f32, process_id: i32, cluster_id: i32) -> Self {
+    pub fn new(
+        id: f32,
+        available_cores: i32,
+        available_ram: f32,
+        process_id: i32,
+        cluster_id: i32,
+    ) -> Self {
         NodeInfo {
             id,
             available_cores,
@@ -118,9 +124,15 @@ impl StatusHandler {
 
             job_info: None,
 
+            https_client: isahc::HttpClient::builder()
+                .timeout(Duration::from_secs(60))
+                .redirect_policy(RedirectPolicy::Limit(10))
+                .version_negotiation(VersionNegotiation::http11())
+                .build()
+                .unwrap(),
+
             process_id: -1,
             cluster_id: -1,
-
         }
     }
     #[tokio::main]
@@ -128,31 +140,19 @@ impl StatusHandler {
         let mut x_ids: Vec<u8> = vec![];
         let mut job_selected = false;
         let mut err_count = 0;
-        let mut resp_2;
         while !&job_selected {
-            let client = reqwest::Client::new();
-            let resp = client.put(self.api_url.clone() + "/worker-nodes/get-job")
-                .json(&x_ids)
-                .send()
+            let req = isahc::Request::put(self.api_url.clone() + "/worker-nodes/get-job")
+                .body(serde_json::to_string(&x_ids).unwrap())
+                .unwrap();
+            let resp = self.https_client.send_async(req)
+                .await
+                .unwrap()
+                .json()
                 .await;
 
+            println!("Request: {:?}", resp);
+
             match resp {
-                Ok(r) => {
-                    resp_2 = r.json::<JobInfo>().await;
-                },
-                Err(e) => {
-                    if err_count < 5 {
-                        println!("Error: {:?}", e);
-                        err_count += 1;
-                        sleep(Duration::from_millis(1000));
-                        continue;
-                    } else {
-                        return Err(StatusHandlerError::ErrorGettingJob(e.to_string()));
-                    }
-                }
-            }
-            err_count = 0;
-            match resp_2 {
                 Ok(job) => {
                     println!("Job selected: {:?}", job);
                     self.job_info = Some(job);
@@ -169,14 +169,18 @@ impl StatusHandler {
                 }
             }
 
-            if self.job_info.as_ref().unwrap().job_batch.cpu_needed as i64 > self.cores_available as i64 {
+            if self.job_info.as_ref().unwrap().job_batch.cpu_needed as i64
+                > self.cores_available as i64
+            {
                 println!("Not enough cores available");
                 x_ids.push(self.job_info.as_ref().unwrap().id as u8);
                 self.reject_job().await;
                 continue;
             }
 
-            if self.job_info.as_ref().unwrap().job_batch.ram_needed as f64 > self.current_memory as f64 {
+            if self.job_info.as_ref().unwrap().job_batch.ram_needed as f64
+                > self.current_memory as f64
+            {
                 println!("Not enough memory available");
                 x_ids.push(self.job_info.as_ref().unwrap().id as u8);
                 self.reject_job().await;
@@ -194,18 +198,24 @@ impl StatusHandler {
         let start_n = job.job_args.start_n;
         let end_n = job.job_args.end_n;
         let mut calc_pi = CalcPi::new(start_n as i128, end_n as i128, Some("./"));
-        calc_pi.set_status_update_interval(self.job_info.as_ref().unwrap().job_args.status_update_interval as i128);
-        calc_pi.set_data_handler_archive_id(self.job_info.as_ref().unwrap().id as i32, self.job_info.as_ref().unwrap().job_batch.id as i32);
+        calc_pi.set_status_update_interval(
+            self.job_info
+                .as_ref()
+                .unwrap()
+                .job_args
+                .status_update_interval as i128,
+        );
+        calc_pi.set_data_handler_archive_id(
+            self.job_info.as_ref().unwrap().id as i32,
+            self.job_info.as_ref().unwrap().job_batch.id as i32,
+        );
         self.job_status = 4;
         self.write_new_status().await.unwrap();
         let (tx, mut rx) = mpsc::channel(32);
 
-
-        tokio::spawn(
-            async move {
-                calc_pi.calc_pi_terms_with_status(tx).await;
-            }
-        );
+        tokio::spawn(async move {
+            calc_pi.calc_pi_terms_with_status(tx).await;
+        });
 
         while let Some(message) = rx.recv().await {
             self.update_percent_complete(message).await.unwrap();
@@ -233,9 +243,16 @@ impl StatusHandler {
     async fn update_node_info(&mut self) -> Result<(), StatusHandlerError> {
         let client = reqwest::Client::new();
         let mut err_count = 0;
-        let node_info = NodeInfo::new(self.job_info.as_ref().unwrap().id, self.cores_available, self.current_memory, self.process_id, self.cluster_id);
+        let node_info = NodeInfo::new(
+            self.job_info.as_ref().unwrap().id,
+            self.cores_available,
+            self.current_memory,
+            self.process_id,
+            self.cluster_id,
+        );
         loop {
-            let resp = client.patch(self.api_url.clone() + "/worker-nodes/set-info")
+            let resp = client
+                .patch(self.api_url.clone() + "/worker-nodes/set-info")
                 .json(&node_info)
                 .send()
                 .await;
@@ -264,7 +281,8 @@ impl StatusHandler {
         let client = reqwest::Client::new();
         let mut err_count = 0;
         loop {
-            let resp = client.patch(self.api_url.clone() + "/worker-nodes/set-status")
+            let resp = client
+                .patch(self.api_url.clone() + "/worker-nodes/set-status")
                 .json(&s)
                 .send()
                 .await;
@@ -286,11 +304,15 @@ impl StatusHandler {
         }
         Ok(())
     }
-    async fn update_percent_complete(&mut self, percent: PercentUpdate) -> Result<(), StatusHandlerError> {
+    async fn update_percent_complete(
+        &mut self,
+        percent: PercentUpdate,
+    ) -> Result<(), StatusHandlerError> {
         let client = reqwest::Client::new();
         let mut err_count = 0;
         loop {
-            let resp = client.patch(self.api_url.clone() + "/worker-nodes/update-percentage")
+            let resp = client
+                .patch(self.api_url.clone() + "/worker-nodes/update-percentage")
                 .json(&PStatusUpdate {
                     id: self.job_info.as_ref().unwrap().id,
                     percentage_complete: percent.percent,
@@ -308,7 +330,9 @@ impl StatusHandler {
                         sleep(Duration::from_millis(1000));
                         continue;
                     } else {
-                        return Err(StatusHandlerError::ErrorUpdatingPercentageComplete(e.to_string()));
+                        return Err(StatusHandlerError::ErrorUpdatingPercentageComplete(
+                            e.to_string(),
+                        ));
                     }
                 }
             }
@@ -317,11 +341,9 @@ impl StatusHandler {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::io::ErrorKind;
-    use crate::status_handler::{StatusHandler, StatusHandlerError};
+    use crate::status_handler::{StatusHandler};
 
     #[test]
     fn test_cpus() {
