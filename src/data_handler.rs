@@ -1,15 +1,13 @@
-use std::{fmt};
+use std::fmt;
 use std::fmt::Debug;
-use std::fs::{create_dir, File, create_dir_all};
+use std::fs::{create_dir, create_dir_all, File};
 use std::io::Write;
 use std::path::Path;
 
 use flate2::write::GzEncoder;
 use tar::Builder;
 
-
-#[derive(Debug)]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HeaderError {
     FileTypeNotSupported(String),
     HeaderAlreadyWritten(Vec<String>),
@@ -17,24 +15,26 @@ pub enum HeaderError {
     HeaderNotInitialized(),
 }
 
-#[derive(Debug)]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DataWriterError {
     FileAlreadyExists(String),
 }
 
-
 impl fmt::Display for HeaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            HeaderError::FileTypeNotSupported(_s) =>
-                write!(f, "The file type {} does not support headers", _s),
-            HeaderError::HeaderAlreadyWritten(_v) =>
-                write!(f, "The header: {:?} has already been written", _v),
-            HeaderError::TooLateToAddHeader(_i) =>
-                write!(f, "{} lines have already been written, cannot add header", _i),
-            HeaderError::HeaderNotInitialized() =>
-                write!(f, "The header has not been initialized"),
+            HeaderError::FileTypeNotSupported(_s) => {
+                write!(f, "The file type {} does not support headers", _s)
+            }
+            HeaderError::HeaderAlreadyWritten(_v) => {
+                write!(f, "The header: {:?} has already been written", _v)
+            }
+            HeaderError::TooLateToAddHeader(_i) => write!(
+                f,
+                "{} lines have already been written, cannot add header",
+                _i
+            ),
+            HeaderError::HeaderNotInitialized() => write!(f, "The header has not been initialized"),
         }
     }
 }
@@ -42,8 +42,7 @@ impl fmt::Display for HeaderError {
 impl fmt::Display for DataWriterError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DataWriterError::FileAlreadyExists(_s) =>
-                write!(f, "The file {} already exists", _s),
+            DataWriterError::FileAlreadyExists(_s) => write!(f, "The file {} already exists", _s),
         }
     }
 }
@@ -78,10 +77,14 @@ impl DataWriter {
             master_path: master_path.clone(),
             file_number,
             file_type: file_type.to_owned().parse().unwrap(),
-            current_file: File::create(format!("{}/data{}.{}", &master_path, file_number, file_type)).unwrap(),
+            current_file: File::create(format!(
+                "{}/data{}.{}",
+                &master_path, file_number, file_type
+            ))
+            .unwrap(),
             f_ln_written: 0,
             max_size_per_file: 2_147_483_648,
-// max_size_per_file: 10_000_000,
+            // max_size_per_file: 10_000_000,
             t_ln_written: 0,
             headers: Vec::new(),
             header_written: false,
@@ -92,7 +95,7 @@ impl DataWriter {
     }
 
     pub fn assign_headers(&mut self, headers: Vec<String>) -> Result<(), HeaderError> {
-// Check if file supports headers
+        // Check if file supports headers
         if self.file_type == "csv" {
             self.headers = headers;
             self.header_assigned = true;
@@ -113,7 +116,11 @@ impl DataWriter {
         }
 
         loop {
-            folder_path = format!("{}/output_{}", base_folder_path.unwrap_or("."), folder_number);
+            folder_path = format!(
+                "{}/output_{}",
+                base_folder_path.unwrap_or("."),
+                folder_number
+            );
             result = create_dir(&folder_path);
             match result {
                 Ok(_) => {
@@ -134,11 +141,15 @@ impl DataWriter {
         if !self.header_written {
             return Err(HeaderError::HeaderNotInitialized());
         }
-// TODO: implement header conversion
+        // TODO: implement header conversion
         Ok(())
     }
 
-    pub fn write_data_using_array(&mut self, data: Vec<String>, add_new_line: Option<bool>) -> Result<(), DataWriterError> {
+    pub fn write_data_using_array(
+        &mut self,
+        data: Vec<String>,
+        add_new_line: Option<bool>,
+    ) -> Result<(), DataWriterError> {
         self.check_if_file_is_full_and_update().unwrap();
         let mut data_string = String::new();
         for line in data.iter() {
@@ -152,7 +163,6 @@ impl DataWriter {
         }
         self.current_file.write_all(data_string.as_bytes()).unwrap();
 
-
         Ok(())
     }
 
@@ -160,16 +170,20 @@ impl DataWriter {
         self.close_current_file().unwrap();
         let archive_path: String;
 
-// TODO: Implement conversion form std error to data writer error
+        // TODO: Implement conversion form std error to data writer error
         if self.archive_info.is_some() {
-            archive_path = format!("pi_{}_{}.tar.gz", self.archive_info.as_ref().unwrap().batch_id, self.archive_info.as_ref().unwrap().id, );
+            archive_path = format!(
+                "pi_{}_{}.tar.gz",
+                self.archive_info.as_ref().unwrap().batch_id,
+                self.archive_info.as_ref().unwrap().id,
+            );
         } else {
             archive_path = format!("archive.tar.gz");
         }
         let tar_gz = File::create(archive_path).unwrap();
         let enc = GzEncoder::new(tar_gz, flate2::Compression::best());
         let mut tar = Builder::new(enc);
-// TODO: Implement conversion form std error to data writer error
+        // TODO: Implement conversion form std error to data writer error
         tar.append_dir_all("{}", &self.master_path).unwrap();
         tar.finish().unwrap();
         Ok(())
@@ -183,7 +197,10 @@ impl DataWriter {
         self.close_current_file().unwrap();
 
         self.file_number += 1;
-        let _current_file_path = format!("{}/data{}.{}", self.master_path, self.file_number, self.file_type);
+        let _current_file_path = format!(
+            "{}/data{}.{}",
+            self.master_path, self.file_number, self.file_type
+        );
         if Path::new(&_current_file_path).exists() {
             return Err(DataWriterError::FileAlreadyExists(_current_file_path));
         }
@@ -216,7 +233,9 @@ impl DataWriter {
             }
             header_string.push('\n');
             if self.f_ln_written == 0 {
-                self.current_file.write_all(header_string.as_bytes()).unwrap();
+                self.current_file
+                    .write_all(header_string.as_bytes())
+                    .unwrap();
                 self.header_written = true;
                 self.t_ln_written += 1;
                 self.f_ln_written += 1;
@@ -260,7 +279,7 @@ mod test {
             data = vec![i.to_string(), (i + 1).to_string(), (i + 2).to_string()];
             writer.write_data_using_array(data, Some(true)).unwrap();
         }
-// assert_eq!(writer.f_ln_written, 3);
+        // assert_eq!(writer.f_ln_written, 3);
     }
 
     #[test]
