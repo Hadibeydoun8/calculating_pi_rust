@@ -17,3 +17,6 @@ mkdir output error log
 
 # Then Submit the Job
 condor_submit calculating_pi.submit
+
+# Finally, Check the Job Status
+watch condor_q
