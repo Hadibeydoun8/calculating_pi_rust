@@ -163,7 +163,7 @@ impl StatusHandler {
                     if err_count < 5 {
                         println!("Error: {:?}", e);
                         err_count += 1;
-                        sleep(Duration::from_millis(1000));
+                        sleep(Duration::from_millis(5000));
                         continue;
                     } else {
                         return Err(StatusHandlerError::ErrorUnpackingJob(e.to_string()));
@@ -293,7 +293,7 @@ impl StatusHandler {
                     if err_count < 5 {
                         println!("Error Writing Status: {:?}", e);
                         err_count += 1;
-                        sleep(Duration::from_millis(1000));
+                        sleep(Duration::from_millis(5000));
                         continue;
                     } else {
                         return Err(StatusHandlerError::ErrorUpdatingStatus(e.to_string()));
@@ -327,7 +327,7 @@ impl StatusHandler {
                     if err_count < 5 {
                         println!("Update Percent Error: {:?}", e);
                         err_count += 1;
-                        sleep(Duration::from_millis(1000));
+                        sleep(Duration::from_millis(5000));
                         continue;
                     } else {
                         return Err(StatusHandlerError::ErrorUpdatingPercentageComplete(
